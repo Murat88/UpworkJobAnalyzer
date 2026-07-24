@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Upwork Job Analyzer</title>
+<style>
+  body { font-family: Arial, Helvetica, sans-serif; max-width: 900px; margin: 40px auto; padding: 0 20px; color: #1f2937; }
+  h1 { font-size: 22px; margin-bottom: 4px; }
+  p.subtitle { color: #6b7280; margin-top: 0; }
+  textarea { width: 100%; height: 340px; font-family: 'Menlo', 'Consolas', monospace; font-size: 13px; padding: 10px; box-sizing: border-box; border: 1px solid #d1d5db; border-radius: 6px; }
+  .buttons { margin-top: 14px; }
+  button { padding: 10px 22px; margin-right: 10px; font-size: 14px; cursor: pointer; border-radius: 6px; border: 1px solid #d1d5db; background: #f3f4f6; }
+  #evaluateBtn { background: #2563eb; color: #fff; border: none; }
+  #evaluateBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+  #clearBtn { background: #fff; }
+  #result { margin-top: 26px; line-height: 1.6; }
+  .decision-yes { color: #15803d; font-weight: bold; font-size: 16px; }
+  .decision-no { color: #b91c1c; font-weight: bold; font-size: 16px; }
+  .section-title { font-weight: bold; margin-top: 20px; margin-bottom: 6px; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; }
+  .cover-letter { white-space: pre-wrap; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 14px; }
+  .loading, .error { font-style: italic; }
+  .error { color: #b91c1c; }
+  .loading { color: #6b7280; }
+</style>
+</head>
+<body>
+<h1>Upwork Job Analyzer &amp; Cover Letter Writer</h1>
+<p class="subtitle">Paste the full raw text of an Upwork job posting page (job details + "About the client" section) below, then click Evaluate.</p>
+
+<textarea id="jobText" placeholder="Paste the raw Upwork job posting text here...">API expert for website, we need multiple API's to connect to our website
+Posted 17 hours ago
+Worldwide
+Summary
+Seeking a web developer that has experience using API connections to other websites. We may have you contact the other website to obtain the API credentials as well.
+Less than 30 hrs/week
+Hourly
+Less than 1 month
+Duration
+Intermediate
+I am looking for a mix of experience and value
+$5.00
+
+$20.00
+Hourly
+Project Type: One-time project
+Skills and Expertise
+Mandatory skills
+API
+Web Development
+API Integration
+Preferred qualifications
+Location:
+Americas, Europe, Turkey
+Activity on this job
+Proposals:
+20 to 50
+Last viewed by client:
+17 hours ago
+Interviewing:
+8
+Invites sent:
+16
+Unanswered invites:
+8
+Bid range - High $38.00 Avg $15.12 Low $4.00
+About the client
+Payment method verified
+Rating is 4.7 out of 5.
+4.7
+4.73 of 11 reviews
+United States
+Tampa 5:59 PM
+43 jobs posted
+42% hire rate, 2 open jobs
+$1.3K total spent
+18 hires, 2 active
+$11.42 /hr avg hourly rate paid
+24 hours
+Individual client
+Member since Feb 11, 2016</textarea>
+
+<div class="buttons">
+  <button id="evaluateBtn">Evaluate</button>
+  <button id="clearBtn">Clear</button>
+</div>
+
+<div id="result"></div>
+
+<script>
+const evaluateBtn = document.getElementById('evaluateBtn');
+const clearBtn = document.getElementById('clearBtn');
+const jobText = document.getElementById('jobText');
+const result = document.getElementById('result');
+
+clearBtn.addEventListener('click', () => {
+  jobText.value = '';
+  result.innerHTML = '';
+  jobText.focus();
+});
+
+evaluateBtn.addEventListener('click', async () => {
+  const text = jobText.value.trim();
+  if (!text) {
+    result.innerHTML = '<p class="error">Please paste a job post first.</p>';
+    return;
+  }
+  evaluateBtn.disabled = true;
+  result.innerHTML = '<p class="loading">Analyzing job post... this may take a few seconds.</p>';
+  try {
+    const res = await fetch('/evaluate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+      body: text
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      result.innerHTML = '<p class="error">Error: ' + escapeHtml(data.error || res.statusText) + '</p>';
+      return;
+    }
+    renderResult(data);
+  } catch (e) {
+    result.innerHTML = '<p class="error">Request failed: ' + escapeHtml(e.message) + '</p>';
+  } finally {
+    evaluateBtn.disabled = false;
+  }
+});
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.innerText = str == null ? '' : str;
+  return div.innerHTML;
+}
+
+function renderResult(data) {
+  let html = '';
+  html += '<div class="' + (data.shouldApply ? 'decision-yes' : 'decision-no') + '">'
+        + escapeHtml(data.summary) + '</div>';
+
+  if (data.clientEvaluation && !data.clientEvaluation.passed) {
+    html += '<div class="section-title">Client Evaluation &mdash; Failed</div>';
+    html += '<div>' + escapeHtml(data.clientEvaluation.failedReasons.join('; ')) + '</div>';
+  }
+
+  if (data.capabilityMatch) {
+    const cm = data.capabilityMatch;
+    html += '<div class="section-title">Capability Match</div>';
+    html += '<div>Score: ' + cm.score + '/10</div>';
+    html += '<div>Matched: ' + escapeHtml(cm.matchedTechnologies.join(', ')) + '</div>';
+    html += '<div>Missing: ' + escapeHtml(cm.missingTechnologies.join(', ')) + '</div>';
+    html += '<div>Reasoning: ' + escapeHtml(cm.reasoning) + '</div>';
+  }
+
+  if (data.coverLetter) {
+    html += '<div class="section-title">Cover Letter</div>';
+    html += '<div class="cover-letter">' + escapeHtml(data.coverLetter) + '</div>';
+  }
+
+  result.innerHTML = html;
+}
+</script>
+</body>
+</html>
+
