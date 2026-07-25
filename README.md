@@ -97,8 +97,8 @@ src/main/resources/
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/<your-username>/MyFirstLangChain4jExample.git
-cd MyFirstLangChain4jExample
+git clone https://github.com/<your-username>/UpworkJobAnalyzer.git
+cd UpworkJobAnalyzer
 ```
 
 ### 2. Set your OpenAI API key
